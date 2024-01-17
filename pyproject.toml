@@ -1,0 +1,28 @@
+[project]
+name = "friend_trackmania_leaderboard"
+version = "0.0.0"
+description = "Plot trackmania leaderboard"
+requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "numpy",
+    "plotly",
+    "toml",
+    "pyyaml",
+]
+
+[tool.setuptools.packages.find]
+where = [
+    "src/"
+]
+
+[project.optional-dependencies]
+dev = [
+    "types-requests",
+    "mypy",
+    "pytest",
+    "ruff",
+]
+
+[project.scripts]
+friend_trackmania_leaderboard = "friend_trackmania_leaderboard.main:main"

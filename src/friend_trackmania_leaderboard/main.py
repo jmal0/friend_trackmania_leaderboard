@@ -1,11 +1,11 @@
 import argparse
+import collections
 import dataclasses
 import datetime
 import heapq
 import itertools
-import json
 import pathlib
-from typing import Sequence
+from typing import Any
 
 import numpy as np
 import requests
@@ -17,12 +17,11 @@ import yaml
 
 def main() -> None:
     args = parse_args()
+    with open(args.config) as cfg_file:
+        cfg = Config.from_toml(toml.load(cfg_file))
 
     cache_file = pathlib.Path("cached.yml")
     if not cache_file.exists():
-        with open(args.config) as cfg_file:
-            cfg = Config.from_toml(toml.load(cfg_file))
-
         trophy_results: dict[str, list[TrophyData]] = {}
         for name, player_id in cfg.player_ids.items():
             print(f"Fetching trophy results for {name}")
@@ -42,13 +41,8 @@ def main() -> None:
             for player, player_data in parsed_yaml.items()
         }
 
-    # Get all trophy gain categories to use as series for plotting
-    categories = set()
-    for player, player_results in trophy_results.items():
-        categories = categories.union(res.achievement_type for res in player_results)
-
     print("Plotting")
-    figs = plot_trophies(categories, trophy_results)
+    figs = plot_trophies(trophy_results, cfg.plot_settings)
     for plot_name, fig in figs.items():
         with open(f"{plot_name}.html", "wb") as out_html:
             out_html.write(plotly.io.to_html(fig).encode("utf-8"))
@@ -70,6 +64,7 @@ def parse_args() -> argparse.Namespace:
 @dataclasses.dataclass
 class Config:
     player_ids: dict[str, str]
+    plot_settings: dict[str, Any]
 
     @classmethod
     def from_toml(cls, cfg: dict):
@@ -77,7 +72,8 @@ class Config:
             player_ids={
                 str(name): player_id
                 for name, player_id in cfg["players"]
-            }
+            },
+            plot_settings=cfg.get("plot_settings", {}),
         )
 
 
@@ -112,6 +108,7 @@ def get_trophies(player_id, request_limit: int = 100) -> list[TrophyData]:
         "User-Agent": "friend_trackmania_leaderboard/jmal0320@gmail.com",
     }
 
+    types = set()
     gains = []
     for page in range(0, request_limit):
         resp = requests.get(url=f"{base_url}/{page}", headers=headers, data={})
@@ -121,12 +118,19 @@ def get_trophies(player_id, request_limit: int = 100) -> list[TrophyData]:
         num_gains = data["total"]
         for entry in data["gains"]:
             gains.append(TrophyData.from_gain(entry))
+            if gains[-1].achievement_type not in types:
+                print(entry)
+            types.add(gains[-1].achievement_type)
         if len(gains) == num_gains:
             break
     return gains
 
 
-def plot_trophies(categories: Sequence[str], player_trophies: dict[str, list[TrophyData]]) -> dict[str, go.Figure]:
+def plot_trophies(player_trophies: dict[str, list[TrophyData]], plot_args: dict[str, Any]) -> dict[str, go.Figure]:
+    categories = set()
+    for player, player_results in player_trophies.items():
+        categories = categories.union(res.achievement_type for res in player_results)
+
     trophies_chronological = {
         player: sorted(trophies, key=lambda res: res.timestamp)
         for player, trophies in player_trophies.items()
@@ -134,7 +138,11 @@ def plot_trophies(categories: Sequence[str], player_trophies: dict[str, list[Tro
     return {
         "cumulative": plot_cumulative_trophies(trophies_chronological),
         "john_v_marc": plot_race(trophies_chronological, "jmal", "sampleses"),
-        #"categorized": plot_categorized_trophies(categories, trophies_chronological),
+        "categorized": plot_categorized_trophies(
+            list(categories),
+            trophies_chronological,
+            datetime.datetime.fromisoformat(plot_args["categorized"]["start_date"]),
+        ),
     }
 
 
@@ -179,9 +187,22 @@ def plot_cumulative_trophies(player_trophies: dict[str, list[TrophyData]]) -> go
     return fig
 
 
-def plot_categorized_trophies(categories: Sequence[str], player_trophies: dict[str, list[TrophyData]]) -> None:
-    #todo
-    pass
+def plot_categorized_trophies(
+    categories: list[str],
+    player_trophies: dict[str, list[TrophyData]],
+    start_date: datetime.datetime,
+) -> go.Figure:
+    fig = go.Figure()
+    for player, trophies in player_trophies.items():
+        trophies_after_start = [trophy for trophy in trophies if trophy.timestamp >= start_date]
+        totals = collections.defaultdict(int)
+        for trophy in trophies_after_start:
+            totals[trophy.achievement_type] += trophy.count
+        fig.add_trace(
+            go.Bar(name=player, x=categories, y=[totals[cat] for cat in categories]),
+        )
+        fig.update_yaxes(title_text="Trophy points")
+    return fig
 
 
 if __name__ == '__main__':

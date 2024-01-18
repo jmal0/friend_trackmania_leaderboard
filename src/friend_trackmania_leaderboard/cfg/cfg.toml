@@ -5,3 +5,6 @@ players = [
     ["SqueakyPenn", "3da43e05-38db-45e4-b8f0-a75711d013c7"],
     ["Jstarr120", "ba693a59-57b8-410a-96db-a233aecf01c8"],
 ]
+[plot_settings]
+[plot_settings.categorized]
+start_date = "2023-12-25 00:00:00+00:00"

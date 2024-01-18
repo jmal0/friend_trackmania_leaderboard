@@ -113,7 +113,7 @@ def _sum_trophy_points(counts: list[int]) -> int:
 def get_trophies(player_id, request_limit: int = 100) -> list[TrophyData]:
     base_url = f"https://trackmania.io/api/player/{player_id}/trophies"
     headers = {
-        "User-Agent": "friend_trackmania_leaderboard/jmal0320@gmai;.com",
+        "User-Agent": "friend_trackmania_leaderboard/jmal0320@gmail.com",
     }
 
     gains = []

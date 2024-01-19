@@ -100,14 +100,10 @@ class TrophyData:
 
 
 def _sum_trophy_points(counts: list[int]) -> int:
-    if len(counts) != 9:
+    expected_len = 9
+    if len(counts) != expected_len:
         raise ValueError()
-    total = 0
-    base = 1
-    for trophy in counts:
-        total += base * trophy
-        base *= 10
-    return total
+    return sum(counts[i] * 10**i for i in range(expected_len))
 
 
 def get_trophies(player_id, request_limit: int = 100) -> list[TrophyData]:

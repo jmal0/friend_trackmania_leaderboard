@@ -26,3 +26,19 @@ dev = [
 
 [project.scripts]
 friend_trackmania_leaderboard = "friend_trackmania_leaderboard.main:main"
+
+[tool.ruff]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]

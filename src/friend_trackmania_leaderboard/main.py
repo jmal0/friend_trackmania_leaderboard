@@ -8,10 +8,10 @@ import pathlib
 from typing import Any
 
 import numpy as np
-import requests
-import toml
 import plotly.graph_objects as go
 import plotly.io
+import requests
+import toml
 import yaml
 
 
@@ -56,7 +56,7 @@ def parse_args() -> argparse.Namespace:
         "-c",
         default=_cfg_dir / "cfg.toml",
         type=pathlib.Path,
-        help="toml configuration file"
+        help="toml configuration file",
     )
     return parser.parse_args()
 
@@ -69,10 +69,7 @@ class Config:
     @classmethod
     def from_toml(cls, cfg: dict):
         return cls(
-            player_ids={
-                str(name): player_id
-                for name, player_id in cfg["players"]
-            },
+            player_ids={str(name): player_id for name, player_id in cfg["players"]},
             plot_settings=cfg.get("plot_settings", {}),
         )
 
@@ -95,6 +92,16 @@ class TrophyData:
 
     def __lt__(self, other: "TrophyData") -> bool:
         return self.timestamp < other.timestamp
+
+    @staticmethod
+    def categorize(gain_data: dict[str, Any]) -> str:
+        achieve = gain_data["achievement"]
+        category = achieve["trophyAchievementType"]
+        match category:
+            case "SoloRanking":
+                return f"SoloRanking - {achieve['trophySoloRankingAchievementType']}"
+            case _:
+                return category
 
 
 def _sum_trophy_points(counts: list[int]) -> int:
@@ -124,9 +131,11 @@ def get_trophies(player_id, request_limit: int = 100) -> list[TrophyData]:
     return gains
 
 
-def plot_trophies(player_trophies: dict[str, list[TrophyData]], plot_args: dict[str, Any]) -> dict[str, go.Figure]:
+def plot_trophies(
+    player_trophies: dict[str, list[TrophyData]], plot_args: dict[str, Any]
+) -> dict[str, go.Figure]:
     categories = set()
-    for player, player_results in player_trophies.items():
+    for player_results in player_trophies.values():
         categories = categories.union(res.achievement_type for res in player_results)
 
     trophies_chronological = {
@@ -154,7 +163,9 @@ def plot_race(
     sums = [0, 0]
     t = []
     deltas = []
-    for player, trophy in heapq.merge(player1_results, player2_results, key=lambda v: v[1].timestamp):
+    for player, trophy in heapq.merge(
+        player1_results, player2_results, key=lambda v: v[1].timestamp
+    ):
         sums[player] += trophy.count
         t.append(trophy.timestamp)
         deltas.append(sums[0] - sums[1])
@@ -192,7 +203,9 @@ def plot_categorized_trophies(
 ) -> go.Figure:
     fig = go.Figure()
     for player, trophies in player_trophies.items():
-        trophies_after_start = [trophy for trophy in trophies if trophy.timestamp >= start_date]
+        trophies_after_start = [
+            trophy for trophy in trophies if trophy.timestamp >= start_date
+        ]
         totals = collections.defaultdict(int)
         for trophy in trophies_after_start:
             totals[trophy.achievement_type] += trophy.count
@@ -203,5 +216,5 @@ def plot_categorized_trophies(
     return fig
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

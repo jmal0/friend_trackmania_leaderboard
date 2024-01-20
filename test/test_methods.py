@@ -1,5 +1,5 @@
-import pytest
 import friend_trackmania_leaderboard.main as _main
+import pytest
 
 
 def test_sum_trophy_points():

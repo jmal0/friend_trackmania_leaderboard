@@ -82,6 +82,7 @@ class TrophyData:
     timestamp: datetime.datetime
     achievement_type: str
     count: int
+    data: dict
 
     @classmethod
     def from_gain(cls, gain_data: dict):
@@ -89,6 +90,7 @@ class TrophyData:
             timestamp=datetime.datetime.fromisoformat(gain_data["timestamp"]),
             achievement_type=gain_data["achievement"]["trophyAchievementType"],
             count=_sum_trophy_points(gain_data["counts"]),
+            data=gain_data,
         )
 
     def __lt__(self, other: "TrophyData") -> bool:
@@ -108,7 +110,6 @@ def get_trophies(player_id, request_limit: int = 100) -> list[TrophyData]:
         "User-Agent": "friend_trackmania_leaderboard/jmal0320@gmail.com",
     }
 
-    types = set()
     gains = []
     for page in range(0, request_limit):
         resp = requests.get(url=f"{base_url}/{page}", headers=headers, data={})
@@ -118,9 +119,6 @@ def get_trophies(player_id, request_limit: int = 100) -> list[TrophyData]:
         num_gains = data["total"]
         for entry in data["gains"]:
             gains.append(TrophyData.from_gain(entry))
-            if gains[-1].achievement_type not in types:
-                print(entry)
-            types.add(gains[-1].achievement_type)
         if len(gains) == num_gains:
             break
     return gains

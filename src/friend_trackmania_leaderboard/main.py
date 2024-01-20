@@ -40,6 +40,10 @@ def main() -> None:
             player: [TrophyData(**trophy) for trophy in player_data]
             for player, player_data in parsed_yaml.items()
         }
+    # Sort by player name for consistent color-player association
+    trophy_results = {
+        player: trophy_results[player] for player in sorted(trophy_results.keys())
+    }
 
     print("Plotting")
     figs = plot_trophies(trophy_results, cfg.plot_settings)
@@ -85,7 +89,7 @@ class TrophyData:
     def from_gain(cls, gain_data: dict):
         return cls(
             timestamp=datetime.datetime.fromisoformat(gain_data["timestamp"]),
-            achievement_type=gain_data["achievement"]["trophyAchievementType"],
+            achievement_type=TrophyData.categorize(gain_data),
             count=_sum_trophy_points(gain_data["counts"]),
             data=gain_data,
         )
@@ -100,6 +104,10 @@ class TrophyData:
         match category:
             case "SoloRanking":
                 return f"SoloRanking - {achieve['trophySoloRankingAchievementType']}"
+            case "CompetitionMatch":
+                return f"CompetitionMatch - {achieve['competitionType']}"
+            case "CompetitionRanking":
+                return f"CompetitionRanking - {achieve['competitionType']}"
             case _:
                 return category
 
@@ -146,9 +154,15 @@ def plot_trophies(
         "cumulative": plot_cumulative_trophies(trophies_chronological),
         "john_v_marc": plot_race(trophies_chronological, "jmal", "sampleses"),
         "categorized": plot_categorized_trophies(
-            list(categories),
+            sorted(categories),
             trophies_chronological,
             datetime.datetime.fromisoformat(plot_args["categorized"]["start_date"]),
+        ),
+        "trophies_per_cup": plot_trophies_per_cup(
+            trophies_chronological,
+            datetime.datetime.fromisoformat(
+                plot_args["trophies_per_cup"]["start_date"]
+            ),
         ),
     }
 
@@ -212,7 +226,34 @@ def plot_categorized_trophies(
         fig.add_trace(
             go.Bar(name=player, x=categories, y=[totals[cat] for cat in categories]),
         )
-        fig.update_yaxes(title_text="Trophy points")
+        fig.update_yaxes(title_text=f"Trophy points since {start_date}")
+    return fig
+
+
+def plot_trophies_per_cup(
+    player_trophies: dict[str, list[TrophyData]],
+    start_date: datetime.datetime,
+) -> go.Figure:
+    fig = go.Figure()
+    for player, trophies in player_trophies.items():
+        trophies_after_start = [
+            trophy for trophy in trophies if trophy.timestamp >= start_date
+        ]
+        counts = collections.defaultdict(int)
+        totals = collections.defaultdict(int)
+        for trophy in trophies_after_start:
+            if trophy.achievement_type.startswith("CompetitionMatch"):
+                counts[trophy.achievement_type] += 1
+                totals[trophy.achievement_type] += trophy.count
+        categories = sorted(totals.keys())
+        fig.add_trace(
+            go.Bar(
+                name=player,
+                x=categories,
+                y=[totals[cat] / counts[cat] for cat in categories],
+            ),
+        )
+        fig.update_yaxes(title_text=f"Trophy points per cup since {start_date}")
     return fig
 
 

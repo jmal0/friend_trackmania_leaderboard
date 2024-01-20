@@ -8,3 +8,5 @@ players = [
 [plot_settings]
 [plot_settings.categorized]
 start_date = "2023-12-25 00:00:00+00:00"
+[plot_settings.trophies_per_cup]
+start_date = "2023-12-25 00:00:00+00:00"
